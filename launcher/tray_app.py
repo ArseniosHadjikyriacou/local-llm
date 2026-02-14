@@ -55,9 +55,21 @@ class TrayApp:
         with self._lock:
             self._status = status
             self._status_detail = detail
-        if self._icon:
-            self._icon.icon = self._icon_for_status()
-            self._icon.title = self._tooltip()
+        self._update_icon()
+
+    def _update_icon(self):
+        """Update the tray icon image and tooltip to reflect current status.
+
+        Skipped while the progress window is visible (first-run setup) to
+        avoid cross-thread Shell_NotifyIcon calls on Windows that can
+        cause the icon to silently fail to appear.
+        """
+        if self._icon and not self._progress:
+            try:
+                self._icon.icon = self._icon_for_status()
+                self._icon.title = self._tooltip()
+            except Exception as e:
+                logger.warning("Failed to update tray icon: %s", e)
 
     def _tooltip(self):
         tip = f"{APP_NAME} — {self._status}"
@@ -203,6 +215,8 @@ class TrayApp:
                 time.sleep(2)
                 self._progress.close()
                 self._progress = None
+                # Now that the progress window is gone, sync the tray icon
+                self._update_icon()
 
             webbrowser.open(WEBUI_URL)
 
@@ -236,8 +250,13 @@ class TrayApp:
         )
 
         def on_ready(icon):
+            # Return immediately so pystray fully registers the icon.
+            # Run the startup in its own thread to avoid blocking the
+            # setup callback, which can prevent the tray icon from
+            # appearing on Windows.
             if auto_start:
-                self._startup_flow()
+                thread = threading.Thread(target=self._startup_flow, daemon=True)
+                thread.start()
 
         # icon.run() blocks the main thread (runs the OS message loop).
         # The setup callback runs in a separate thread once the icon is visible.
