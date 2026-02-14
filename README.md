@@ -6,7 +6,7 @@ A private, offline AI chat application that runs entirely on your computer. No d
 
 - **Windows 10** (version 2004 or later) or **Windows 11**
 - **8 GB RAM** minimum (16 GB recommended)
-- **15 GB free disk space**
+- **10 GB free disk space**
 - **Internet connection** for the initial setup only
 
 ## Installation
@@ -39,10 +39,9 @@ LocalLLM uses Docker to run behind the scenes. You only need to install it once.
 2. A small icon will appear in the system tray (bottom-right corner).
 3. LocalLLM will automatically set itself up. This only happens once and requires an internet connection:
    - **Downloading components** (~5-8 GB) — 10 to 30 minutes depending on your internet speed.
-   - **Downloading the AI model** (~2 GB) — another 5 to 15 minutes.
 4. When everything is ready, your browser will open to the chat interface.
 5. Create an account. This is a **local account** stored only on your computer — it is not sent anywhere.
-6. Start chatting! The model **llama3.2:3b** should already be selected.
+6. Download a model (see **Downloading Models** below) and start chatting!
 
 > Do not close Docker Desktop while using LocalLLM. It needs to be running in the background.
 
@@ -53,11 +52,11 @@ LocalLLM uses Docker to run behind the scenes. You only need to install it once.
 3. Your browser will open automatically to the chat interface.
 4. When you're done, right-click the LocalLLM icon in the system tray and select **Quit**.
 
-After the first launch, **no internet connection is needed**. Everything runs locally on your machine.
+After the first launch, **no internet connection is needed** (unless you want to download more models). Everything runs locally on your machine.
 
-## Downloading Additional Models
+## Downloading Models
 
-LocalLLM comes with one model pre-installed (**llama3.2:3b**), but you can download other models if you want to try different sizes or capabilities. This requires an internet connection.
+LocalLLM does not come with any AI models pre-installed. You need to download at least one model before you can start chatting. This requires an internet connection.
 
 1. Open the chat interface in your browser (http://localhost:3000).
 2. Click on your **profile icon** in the top-right corner.
@@ -71,7 +70,7 @@ LocalLLM comes with one model pre-installed (**llama3.2:3b**), but you can downl
 
 | Model | Size | Description |
 |---|---|---|
-| `llama3.2:3b` | ~2 GB | Already installed. Good balance of speed and quality |
+| `llama3.2:3b` | ~2 GB | Good balance of speed and quality. Recommended starting point |
 | `llama3.2:1b` | ~1.3 GB | Smaller and faster, but less capable |
 | `llama3.1:8b` | ~4.7 GB | Better quality responses, but needs more RAM and is slower |
 | `phi4-mini` | ~2.5 GB | Microsoft's compact model, strong reasoning for its size |

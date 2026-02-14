@@ -4,9 +4,6 @@ import sys
 APP_NAME = "LocalLLM"
 APP_VERSION = "1.0.0"
 
-# Models to pull on first run
-DEFAULT_MODELS = ["llama3.2:3b"]
-
 # Ports (must match .env / docker-compose.yml)
 OPEN_WEBUI_PORT = 3000
 OLLAMA_PORT = 11434

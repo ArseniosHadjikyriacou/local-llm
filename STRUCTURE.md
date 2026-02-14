@@ -18,13 +18,12 @@ LocalLLM is made up of three layers:
 │ │ Python Orchestration Layer (launcher/)                 │   │
 │ │                                                       │   │
 │ │  main.py ──► tray_app.py ──┬── prerequisites.py       │   │
-│ │                            ├── docker_manager.py      │   │
-│ │                            └── model_manager.py       │   │
+│ │                            └── docker_manager.py      │   │
 │ │                                                       │   │
-│ │  Talks to Docker via CLI    Talks to Ollama via REST  │   │
-│ └──────────┬──────────────────────────┬─────────────────┘   │
-│            │                          │                     │
-│            ▼                          ▼                     │
+│ │  Talks to Docker via CLI                              │   │
+│ └──────────┬────────────────────────────────────────────┘   │
+│            │                                                │
+│            ▼                                                │
 │ ┌──────────────────┐   ┌──────────────────────────┐         │
 │ │ Ollama Container │◄──│ Open WebUI Container     │         │
 │ │ :11434           │   │ :3000                    │         │
@@ -62,8 +61,7 @@ Central configuration module. Key responsibilities:
 
 - **Path resolution**: Detects whether the app is running as a PyInstaller `.exe` (via `sys.frozen`) or as a normal Python script, and resolves paths accordingly. This is important because PyInstaller bundles files into a temporary directory at runtime.
 - **Data directory**: Uses `%LOCALAPPDATA%\LocalLLM\` on Windows to store persistent data (marker files, logs) that survives app updates.
-- **Model list**: `DEFAULT_MODELS = ["llama3.2:3b"]` — the list of models to download on first run. Changing this list and rebuilding is all that's needed to ship a different set of default models.
-- **First-run marker**: A file (`.setup_complete`) in the data directory that tracks whether the one-time setup has been performed.
+- **First-run marker**: A file (`.setup_complete`) in the data directory that tracks whether the one-time setup (Docker image pull) has been performed.
 
 #### `prerequisites.py` — Dependency Checker
 
@@ -89,15 +87,14 @@ Key functions:
 - **`wait_for_webui(timeout)`** — Same polling approach for Open WebUI on port 3000.
 - **`mark_setup_complete()`** — Writes the marker file so subsequent launches skip the first-run steps.
 
-#### `model_manager.py` — Model Downloads
+#### `progress_window.py` — Setup Progress Window
 
-Handles downloading LLM models into Ollama via its REST API. This approach is cleaner than running `docker exec ollama pull ...` because it doesn't require shelling into the container.
+A tkinter-based window that appears during first-time setup to show the user what's happening. Uses a thread-safe queue so the startup flow (running in a background thread) can push log messages and status updates to the UI.
 
-Key functions:
-
-- **`list_models()`** — Calls `GET /api/tags` to check which models Ollama already has.
-- **`pull_model(name, on_progress)`** — Sends `POST /api/pull` with `{"name": "llama3.2:3b", "stream": true}`. The response is a stream of JSON lines, each containing a `status`, `completed` (bytes downloaded), and `total` (total bytes). The progress callback receives these values so the tray app can display download progress.
-- **`pull_default_models(on_progress)`** — Iterates over `DEFAULT_MODELS` from config.py, skips any that are already available, and pulls the rest.
+- **Bold status label** at the top (e.g., "Downloading Docker images...")
+- **Scrollable log area** with a dark theme showing real-time progress
+- Close button is disabled during setup (re-enabled on error so the user can dismiss it)
+- Auto-closes when setup completes successfully
 
 #### `tray_app.py` — System Tray UI
 
@@ -124,7 +121,7 @@ Check prerequisites (prerequisites.py)
     │
     ▼ (fail → set error status, open Docker download page)
 Is first run?
-    │ yes
+    │ yes → show progress window
     ▼
 Pull Docker images (docker_manager.pull_images)
     │
@@ -135,24 +132,18 @@ Start containers (docker_manager.start)
 Wait for Ollama API to respond (docker_manager.wait_for_ollama)
     │
     ▼ (fail → set error status)
-Is first run?
-    │ yes
-    ▼
-Pull default models (model_manager.pull_default_models)
+Wait for WebUI to respond (docker_manager.wait_for_webui)
     │
     ▼
 Write first-run marker (docker_manager.mark_setup_complete)
     │
     ▼
-Wait for WebUI to respond (docker_manager.wait_for_webui)
-    │
-    ▼
-Set status to "running", open browser
+Close progress window, set status to "running", open browser
 ```
 
-On subsequent launches, the "pull images" and "pull models" steps are skipped entirely (the marker file exists), so startup is just: check prerequisites → start containers → wait for healthy → open browser.
+On first run, a progress window shows real-time feedback for each step (image downloads, container startup, health checks). On subsequent launches, the image pull is skipped (the marker file exists), so startup is just: check prerequisites → start containers → wait for healthy → open browser.
 
-Throughout this flow, the tray icon's tooltip is updated with the current step and progress information, giving the user visibility into what's happening.
+Users download AI models themselves through the Open WebUI interface after setup is complete.
 
 ## Build & Packaging
 

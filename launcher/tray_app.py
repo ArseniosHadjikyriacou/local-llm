@@ -8,7 +8,8 @@ import pystray
 from PIL import Image, ImageDraw
 
 from launcher.config import APP_NAME, WEBUI_URL
-from launcher import prerequisites, docker_manager, model_manager
+from launcher import prerequisites, docker_manager
+from launcher.progress_window import ProgressWindow
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class TrayApp:
         self._status_detail = ""
         self._lock = threading.Lock()
         self._icon = None
+        self._progress = None  # ProgressWindow instance during setup
 
     # ── Icon generation ──────────────────────────────────────────────
 
@@ -62,6 +64,19 @@ class TrayApp:
         if self._status_detail:
             tip += f": {self._status_detail}"
         return tip
+
+    # ── Progress window helpers ──────────────────────────────────────
+
+    def _progress_log(self, message):
+        """Log a message to both the logger and the progress window."""
+        logger.info(message)
+        if self._progress:
+            self._progress.log(message)
+
+    def _progress_status(self, message):
+        """Update the status label in the progress window."""
+        if self._progress:
+            self._progress.set_status(message)
 
     # ── Menu actions ─────────────────────────────────────────────────
 
@@ -109,55 +124,94 @@ class TrayApp:
     # ── Startup / shutdown flows ─────────────────────────────────────
 
     def _startup_flow(self):
-        """Full startup sequence: prerequisites → pull → start → models → open."""
+        """Full startup sequence: prerequisites → pull → start → open."""
+        first_run = docker_manager.is_first_run()
+
+        # Show progress window during first-run setup
+        if first_run:
+            self._progress = ProgressWindow()
+            self._progress.show()
+            self._progress.set_status("Checking prerequisites...")
+            self._progress.log("First-time setup — this may take 10-30 minutes.")
+            self._progress.log("Please keep this window open and stay connected to the internet.\n")
+
         try:
             self._set_status("starting", "Checking prerequisites...")
+            self._progress_log("Checking for Docker Desktop...")
             ok, msg = prerequisites.check_prerequisites()
             if not ok:
                 self._set_status("error", "Docker not available")
                 logger.error("Prerequisites check failed: %s", msg)
-                # Open download page if Docker is missing
+                if self._progress:
+                    self._progress.set_error("Docker Desktop is not available")
+                    self._progress.log(f"\n{msg}")
                 if "not installed" in msg.lower():
                     prerequisites.open_docker_download_page()
                 return
+            self._progress_log("Docker Desktop is ready.")
 
-            # First-run: pull images and models
-            if docker_manager.is_first_run():
+            # First-run: pull images
+            if first_run:
                 self._set_status("starting", "Pulling Docker images (first run)...")
-                docker_manager.pull_images(
-                    on_progress=lambda line: self._set_status("starting", line[:60])
-                )
+                self._progress_status("Downloading Docker images...")
+                self._progress_log("\nPulling Docker images (this is the largest download)...")
+
+                def on_image_progress(line):
+                    self._set_status("starting", line[:60])
+                    self._progress_log(line)
+
+                docker_manager.pull_images(on_progress=on_image_progress)
+                self._progress_log("Docker images downloaded successfully.\n")
 
             self._set_status("starting", "Starting containers...")
+            self._progress_log("Starting containers...")
+            self._progress_status("Starting containers...")
             docker_manager.start()
+            self._progress_log("Containers started.")
 
             self._set_status("starting", "Waiting for Ollama...")
+            self._progress_log("Waiting for Ollama to be ready...")
+            self._progress_status("Waiting for Ollama...")
             if not docker_manager.wait_for_ollama(timeout=180):
                 self._set_status("error", "Ollama not responding")
+                if self._progress:
+                    self._progress.set_error("Error: Ollama did not respond in time")
+                    self._progress.log("\nOllama failed to start. Check Docker Desktop is running and try again.")
                 return
-
-            # Pull models on first run
-            if docker_manager.is_first_run():
-                self._set_status("starting", "Downloading models (first run)...")
-                model_manager.pull_default_models(
-                    on_progress=lambda name, status, done, total: self._set_status(
-                        "starting",
-                        f"{name}: {status}" + (f" {done * 100 // total}%" if total else ""),
-                    )
-                )
-                docker_manager.mark_setup_complete()
+            self._progress_log("Ollama is ready.")
 
             self._set_status("starting", "Waiting for WebUI...")
+            self._progress_log("Waiting for web interface to be ready...")
+            self._progress_status("Starting web interface...")
             if not docker_manager.wait_for_webui(timeout=180):
                 self._set_status("error", "WebUI not responding")
+                if self._progress:
+                    self._progress.set_error("Error: Web interface did not respond in time")
+                    self._progress.log("\nThe web interface failed to start. Try restarting the application.")
                 return
+            self._progress_log("Web interface is ready.")
+
+            if first_run:
+                docker_manager.mark_setup_complete()
 
             self._set_status("running")
+
+            if self._progress:
+                self._progress_log("\nSetup complete! Opening your browser...")
+                self._progress.set_status("Setup complete!")
+                import time
+                time.sleep(2)
+                self._progress.close()
+                self._progress = None
+
             webbrowser.open(WEBUI_URL)
 
         except Exception as e:
             logger.exception("Startup failed")
             self._set_status("error", str(e)[:80])
+            if self._progress:
+                self._progress.set_error("Setup failed")
+                self._progress.log(f"\nError: {e}")
 
     def _shutdown_flow(self):
         """Stop the compose stack."""
