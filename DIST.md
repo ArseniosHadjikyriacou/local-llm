@@ -4,13 +4,13 @@
 
 ### Prerequisites
 
-- Python 3.10+
-- PyInstaller (`pip install pyinstaller`)
+- Python 3.10+ (with tkinter — included by default on Windows)
+- [Inno Setup 6+](https://jrsoftware.org/isdl.php)
 
 ### Step 1: Install Python dependencies
 
 ```
-pip install -r launcher/requirements.txt pyinstaller
+pip install -r launcher/requirements.txt
 ```
 
 ### Step 2: Build the launcher executable
@@ -110,8 +110,8 @@ LocalLLM requires Docker Desktop, which must be installed first.
 
 1. Make sure Docker Desktop is running (it starts automatically with Windows by default).
 2. Open **LocalLLM** from the Start Menu or desktop shortcut.
-3. The system tray icon will appear and the browser will open automatically.
-4. When you're done, right-click the LocalLLM tray icon and select **Quit**.
+3. A control window will appear and the browser will open automatically.
+4. When you're done, click **Stop & Quit** in the LocalLLM window.
 
 No internet connection is needed after the first launch (unless downloading new models).
 
@@ -133,6 +133,6 @@ Optionally uninstall Docker Desktop separately if you no longer need it.
 | Docker Desktop won't start | Ensure hardware virtualization is enabled in your BIOS/UEFI settings |
 | First launch is stuck on "Downloading" | Check your internet connection. The download is large (~5-8 GB) and may take time on slow connections |
 | Browser opens but page doesn't load | Wait 1–2 minutes — the web interface takes time to initialize on first start |
-| "Cannot connect" error in browser | Right-click the LocalLLM tray icon → **Start** to restart the services |
+| "Cannot connect" error in browser | Close and reopen LocalLLM to restart the services |
 | Model responses are very slow | This is expected when running AI locally, especially on machines with less than 16 GB RAM. Responses may take a few seconds |
 | Windows SmartScreen blocks the installer | Click **More info** → **Run anyway**. The installer is unsigned, which triggers this warning |

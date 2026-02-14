@@ -1,6 +1,6 @@
 """LocalLLM Launcher — entry point.
 
-Starts a system tray application that manages the Ollama + Open WebUI
+Starts a control window that manages the Ollama + Open WebUI
 Docker Compose stack.
 """
 
@@ -29,9 +29,9 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info("Starting %s launcher", APP_NAME)
 
-    from launcher.tray_app import TrayApp
-    app = TrayApp()
-    app.run(auto_start=True)
+    from launcher.app_window import AppWindow
+    app = AppWindow()
+    app.run()
 
 
 if __name__ == "__main__":

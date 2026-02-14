@@ -24,9 +24,10 @@ def clean():
         path = os.path.join(PROJECT_ROOT, d)
         if os.path.exists(path):
             shutil.rmtree(path)
-    spec = os.path.join(PROJECT_ROOT, "main.spec")
-    if os.path.exists(spec):
-        os.remove(spec)
+    for spec in ("main.spec", "LocalLLM.spec"):
+        path = os.path.join(PROJECT_ROOT, spec)
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def build_exe():
@@ -37,7 +38,6 @@ def build_exe():
         "--onefile",
         "--windowed",
         "--name", "LocalLLM",
-        "--add-data", f"{os.path.join(LAUNCHER_DIR, 'resources')}{os.pathsep}resources",
     ]
     if os.path.exists(icon_path):
         cmd.extend(["--icon", icon_path])

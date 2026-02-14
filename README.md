@@ -36,7 +36,7 @@ LocalLLM uses Docker to run behind the scenes. You only need to install it once.
 ### 3. First Launch
 
 1. Open **LocalLLM** from the Start Menu or desktop shortcut.
-2. A small icon will appear in the system tray (bottom-right corner).
+2. A control window will appear showing the setup progress.
 3. LocalLLM will automatically set itself up. This only happens once and requires an internet connection:
    - **Downloading components** (~5-8 GB) — 10 to 30 minutes depending on your internet speed.
 4. When everything is ready, your browser will open to the chat interface.
@@ -49,8 +49,8 @@ LocalLLM uses Docker to run behind the scenes. You only need to install it once.
 
 1. Make sure Docker Desktop is running (it starts automatically with Windows by default).
 2. Open **LocalLLM** from the Start Menu or desktop shortcut.
-3. Your browser will open automatically to the chat interface.
-4. When you're done, right-click the LocalLLM icon in the system tray and select **Quit**.
+3. A control window will appear and your browser will open automatically to the chat interface.
+4. When you're done, click **Stop & Quit** in the LocalLLM window.
 
 After the first launch, **no internet connection is needed** (unless you want to download more models). Everything runs locally on your machine.
 
@@ -93,7 +93,7 @@ You can browse all available models at https://ollama.com/library
 | Docker Desktop won't start | Make sure hardware virtualization is enabled in your BIOS/UEFI. Search online for instructions specific to your computer model |
 | Setup seems stuck on "Downloading" | Check your internet connection. The initial download is large and can take a while on slower connections |
 | Browser opens but the page won't load | Wait a couple of minutes. The interface can take some time to start, especially on the first launch |
-| "Cannot connect" error in browser | Right-click the LocalLLM tray icon and click **Start** to restart the services |
+| "Cannot connect" error in browser | Close and reopen LocalLLM to restart the services |
 | AI responses are slow | This is normal when running AI locally, especially on machines with less than 16 GB of RAM. Responses may take a few seconds |
 | Windows SmartScreen blocks the installer | Click **More info** then **Run anyway** |
 

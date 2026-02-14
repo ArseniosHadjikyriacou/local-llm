@@ -5,20 +5,20 @@
 LocalLLM is made up of three layers:
 
 1. **Docker Compose stack** — two containers (Ollama and Open WebUI) that do the actual work.
-2. **Python orchestration layer** — a system tray application that manages the lifecycle of the Docker stack so the user never has to touch a terminal.
+2. **Python orchestration layer** — a tkinter control window that manages the lifecycle of the Docker stack so the user never has to touch a terminal.
 3. **Windows installer** — packages the launcher and configuration files for distribution.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ User                                                        │
-│   clicks tray icon                                          │
+│   launches LocalLLM.exe                                     │
 │       │                                                     │
 │       ▼                                                     │
 │ ┌───────────────────────────────────────────────────────┐   │
 │ │ Python Orchestration Layer (launcher/)                 │   │
 │ │                                                       │   │
-│ │  main.py ──► tray_app.py ──┬── prerequisites.py       │   │
-│ │                            └── docker_manager.py      │   │
+│ │  main.py ──► app_window.py ──┬── prerequisites.py     │   │
+│ │                              └── docker_manager.py    │   │
 │ │                                                       │   │
 │ │  Talks to Docker via CLI                              │   │
 │ └──────────┬────────────────────────────────────────────┘   │
@@ -51,7 +51,7 @@ This is the core of what makes LocalLLM a turnkey product rather than a "run the
 
 #### `main.py` — Entry Point
 
-Sets up logging (to both a file and stderr) and starts the tray application. When compiled with PyInstaller, this is what runs when the user double-clicks `LocalLLM.exe`.
+Sets up logging (to both a file and stderr) and starts the control window. When compiled with PyInstaller, this is what runs when the user double-clicks `LocalLLM.exe`.
 
 - Log file location: `%LOCALAPPDATA%\LocalLLM\launcher.log`
 
@@ -79,7 +79,7 @@ Manages the Docker Compose stack. All Docker commands run via `subprocess` with 
 Key functions:
 
 - **`is_first_run()`** — Checks whether the `.setup_complete` marker file exists. If not, the first-run flow is triggered.
-- **`pull_images(on_progress)`** — Runs `docker compose pull` to download the Ollama and Open WebUI Docker images. Streams stdout line-by-line and passes each line to an optional progress callback, which the tray app uses to update its tooltip.
+- **`pull_images(on_progress)`** — Runs `docker compose pull` to download the Ollama and Open WebUI Docker images. Streams stdout line-by-line and passes each line to an optional progress callback, which the control window uses to display download progress.
 - **`start()`** — Runs `docker compose up -d` to start both containers in detached mode.
 - **`stop()`** — Runs `docker compose down` to stop and remove the containers (volumes are preserved).
 - **`status()`** — Runs `docker compose ps` and parses the output to determine which containers are running.
@@ -87,34 +87,26 @@ Key functions:
 - **`wait_for_webui(timeout)`** — Same polling approach for Open WebUI on port 3000.
 - **`mark_setup_complete()`** — Writes the marker file so subsequent launches skip the first-run steps.
 
-#### `progress_window.py` — Setup Progress Window
+#### `app_window.py` — Control Window
 
-A tkinter-based window that appears during first-time setup to show the user what's happening. Uses a thread-safe queue so the startup flow (running in a background thread) can push log messages and status updates to the UI.
+The user-facing interface. Uses tkinter (built into Python, no external dependencies) to display a persistent control window. This replaced an earlier pystray-based system tray icon that proved unreliable on Windows.
 
-- **Bold status label** at the top (e.g., "Downloading Docker images...")
-- **Scrollable log area** with a dark theme showing real-time progress
-- Close button is disabled during setup (re-enabled on error so the user can dismiss it)
-- Auto-closes when setup completes successfully
+**UI elements:**
 
-#### `tray_app.py` — System Tray UI
+- **Status indicator** — A colored dot (gray/yellow/green/red) showing the current state
+- **Status label** — Bold text describing what's happening (e.g., "Starting — Downloading Docker images...")
+- **Log area** — Dark-themed scrollable text area showing real-time progress during setup and startup
+- **Open WebUI** button — Opens `http://localhost:3000` in the default browser. Disabled until services are running.
+- **Stop & Quit** button — Stops containers and exits the application.
+- **Version label** — Shows the app version in the bottom-right corner
 
-The user-facing interface. Uses `pystray` to create a Windows system tray icon with a right-click menu.
+**Thread safety:**
 
-**Status management:**
-
-The app tracks its state as one of: `stopped`, `starting`, `running`, `error`. Each state maps to an icon color (gray, yellow, green, red) generated dynamically with Pillow. The tooltip shows the current status and a detail message (e.g., "starting: Pulling Docker images...").
-
-**Menu items:**
-
-- **Start** — Triggers the startup flow in a background thread. Disabled when already running.
-- **Stop** — Triggers shutdown. Disabled when not running.
-- **Open WebUI** — Opens `http://localhost:3000` in the default browser. Disabled when not running.
-- **Status** — Read-only display of the current state.
-- **Quit** — Stops containers if running, then exits.
+The startup flow runs in a background thread. All UI updates go through a thread-safe queue that the tkinter main loop drains every 100ms via `_poll_queue()`. This avoids tkinter's cross-thread limitations.
 
 **Startup flow** (`_startup_flow`):
 
-This is the main orchestration sequence, run in a background thread so the tray icon remains responsive:
+This is the main orchestration sequence, run in a background thread so the window remains responsive:
 
 ```
 Check prerequisites (prerequisites.py)
