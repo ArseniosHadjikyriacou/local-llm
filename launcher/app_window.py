@@ -96,6 +96,8 @@ class AppWindow:
                 action, data = self._queue.get_nowait()
                 if action == "log":
                     self._append_log(data)
+                elif action == "log_progress":
+                    self._replace_last_log(data)
                 elif action == "status":
                     self._set_ui_status(*data)
                 elif action == "enable_open":
@@ -108,6 +110,16 @@ class AppWindow:
 
     def _append_log(self, message):
         self._text.config(state=tk.NORMAL)
+        self._text.insert(tk.END, message + "\n")
+        self._text.see(tk.END)
+        self._text.config(state=tk.DISABLED)
+
+    def _replace_last_log(self, message):
+        """Overwrite the last line in the log area (for progress updates)."""
+        self._text.config(state=tk.NORMAL)
+        # Delete the last line (everything between the start of the last
+        # line and the end of the text)
+        self._text.delete("end-2l linestart", "end-1c")
         self._text.insert(tk.END, message + "\n")
         self._text.see(tk.END)
         self._text.config(state=tk.DISABLED)
@@ -126,6 +138,10 @@ class AppWindow:
     def log(self, message):
         logger.info(message)
         self._queue.put(("log", message))
+
+    def log_progress(self, message):
+        """Update the last log line in-place (for progress bars)."""
+        self._queue.put(("log_progress", message))
 
     def set_status(self, status, detail=""):
         self._queue.put(("status", (status, detail)))
@@ -148,13 +164,12 @@ class AppWindow:
 
     def _quit_flow(self):
         """Stop containers then exit (runs in background thread)."""
-        if self._status == "running":
-            self.log("Stopping containers...")
-            try:
-                docker_manager.stop()
-                self.log("Containers stopped.")
-            except Exception as e:
-                logger.error("Error stopping containers: %s", e)
+        self.log("Stopping containers...")
+        try:
+            docker_manager.stop()
+            self.log("Containers stopped.")
+        except Exception as e:
+            logger.error("Error stopping containers: %s", e)
         # Schedule exit on the main thread
         self._root.after(0, self._root.destroy)
 
@@ -187,7 +202,7 @@ class AppWindow:
 
                 def on_image_progress(line):
                     self.set_status("starting", "Downloading Docker images...")
-                    self.log(line)
+                    self.log_progress(line)
 
                 docker_manager.pull_images(on_progress=on_image_progress)
                 self.log("Docker images downloaded successfully.\n")
